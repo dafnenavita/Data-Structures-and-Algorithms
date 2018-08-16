@@ -1,0 +1,268 @@
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
+import javax.swing.border.AbstractBorder;
+import javax.swing.border.BevelBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.EtchedBorder;
+
+
+public class Maze {
+
+	
+    public Maze(int row,int col){
+        this.row=row;
+        this.col=col;
+        this.grid=row*col;
+
+
+    }
+    
+    public void getMaze(){
+        initialMaze();
+        generateMaze();
+        displayMaze();
+     
+    }
+    
+    public void getMaze(int row,int col){
+        this.row=row;
+        this.col=col;
+        this.grid=row*col;
+        initialMaze();
+        generateMaze();
+        updateMaze();
+      
+
+
+    }
+    private int row;
+    private int col;
+    private int grid;
+    private DisjSets set;
+    private Node[][] node;
+    private List<Edge> edge;
+    Edge vertical=new Edge(0,0,EdgeType.vertical);
+    Edge horizontal=new Edge(0,0,EdgeType.horizontal);
+    Edge visitedEdge=new Edge(0,0,EdgeType.horizontal);
+    
+    
+    //initialize the maze 
+    private void initialMaze(){
+
+        set=new DisjSets(row*col);
+        node=new Node[row][col];
+        edge=new LinkedList<Edge>();
+        for(int i=0;i<row;i++){
+            for(int j=0;j<col;j++){
+                node[i][j]=new Node(String.valueOf(i*col+j),i,j);
+            }
+        }
+        for(int j=0;j<col;j++){
+            node[0][j].up=horizontal;
+            node[row-1][j].down=horizontal;
+        }
+        for(int i=0;i<row;i++){
+            node[i][0].left=vertical;
+            node[i][col-1].right=vertical;
+        }
+        for(int i=0;i<row-1;i++){
+            for(int j=0;j<col;j++){
+                node[i][j].down=new Edge(i*col+j,(i+1)*col+j,EdgeType.horizontal);
+                node[i+1][j].up=node[i][j].down;
+                edge.add(node[i][j].down);
+            }
+        }
+        for(int j=0;j<col-1;j++){
+            for(int i=0;i<row;i++){
+                node[i][j].right=new Edge(i*col+j,i*col+j+1,EdgeType.vertical);
+                node[i][j+1].left=node[i][j].right;
+                edge.add(node[i][j].right);
+            }
+        }
+
+    }
+    
+    //Maze generation method
+    private void generateMaze(){
+        Random rand=new Random();
+        while(!edge.isEmpty()){
+            int index=rand.nextInt(edge.size());
+            Edge selected=edge.remove(index);
+            int p=selected.p;
+            int q=selected.q;
+            int root1=set.find(p);
+            int root2=set.find(q);
+            if(root1!=root2){
+                set.union(root1, root2);
+                if(selected.r==EdgeType.vertical){
+                    node[p/col][p%col].right=null;
+                    node[q/col][q%col].left=null;
+                }else{
+                    node[p/col][p%col].down=null;
+                    node[q/col][q%col].up=null;
+                }
+            }
+        }
+        node[0][0].up=null;
+        node[row-1][col-1].down=null;
+
+    }
+    JFrame frame=new JFrame("Maze Generator");
+    JPanel panel=new JPanel();
+    
+    //Update maze based on user input
+    private void updateMaze(){
+        panel=new JPanel();
+        frame.add(BorderLayout.CENTER,panel);
+        frame.getContentPane().setBackground(Color.ORANGE);
+        panel.setLayout(new GridLayout(row, col));
+        for(int i=0;i<row;i++){
+            for(int j=0;j<col;j++){
+                String labelValue=node[i][j].info2;
+                JLabel label=new JLabel(labelValue);
+                label.setHorizontalAlignment(SwingConstants.CENTER);
+                int up=1,down=1,right=1,left=1;
+                if(node[i][j].up==null){
+                    up=0;
+                }else if(node[i][j].up==horizontal){
+                    up=2;
+                }
+                if(node[i][j].left==null){
+                    left=0;
+                }else if(node[i][j].left==vertical){
+                    left=2;
+                }
+                if(node[i][j].down==null){
+                    down=0;
+                }else if(node[i][j].down==horizontal){
+                    down=2;
+                }
+                if(node[i][j].right==null){
+                    right=0;
+                }else if(node[i][j].right==vertical){
+                    right=2;
+                }
+                label.setBorder(BorderFactory.createMatteBorder(up, left, down, right, Color.RED));
+                panel.add(label);
+            }
+        }
+        frame.setVisible(true);
+    }
+    
+
+    @SuppressWarnings("serial")
+    class CustomeBorder extends AbstractBorder{
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y,
+                int width, int height) {
+            super.paintBorder(c, g, x, y, width, height);
+            Graphics2D gd = (Graphics2D)g;
+            gd.setStroke(new BasicStroke(12));
+            gd.setColor(Color.blue);
+            gd.drawRoundRect(x, y, width - 1, height - 1, 25, 25);
+        }   
+    }
+
+    
+    //Display the maze
+    private void displayMaze(){
+        frame.setSize(600, 600);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setLayout(new BorderLayout());
+        JPanel mazePanel=new JPanel();
+        frame.add(BorderLayout.NORTH,mazePanel);
+        final JTextArea answer=new JTextArea();
+        answer.setColumns(10);
+        answer.setRows(3);
+        answer.setAutoscrolls(true);
+        
+        final JTextField rowArea=new JTextField(String.valueOf(row));
+        rowArea.setSize(200, 50);
+        rowArea.setBorder(BorderFactory.createCompoundBorder(
+                new CustomeBorder(), 
+                new EmptyBorder(new Insets(10, 15, 10, 15))));
+       
+        final JTextField colArea=new JTextField(String.valueOf(col));
+        colArea.setSize(200, 50);
+        colArea.setBorder(BorderFactory.createCompoundBorder(
+                new CustomeBorder(), 
+                new EmptyBorder(new Insets(10, 15, 10, 15))));
+        
+        JButton generate=new JButton("Maze");
+        generate.setBorder(BorderFactory.createCompoundBorder( BorderFactory.createBevelBorder(BevelBorder.RAISED, Color.BLUE.darker(), Color.BLACK), BorderFactory.createEtchedBorder(EtchedBorder.LOWERED)));
+        generate.setFont(new Font("Arial",Font.BOLD, 20));
+        mazePanel.add(generate);
+        mazePanel.add(rowArea);
+        mazePanel.add(colArea);
+        generate.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                answer.setText("");
+                getMaze(Integer.valueOf(rowArea.getText()),
+                        Integer.valueOf(colArea.getText()));
+
+
+            }
+        });
+        
+         updateMaze();
+    }
+
+   
+    private static enum EdgeType{
+        vertical,horizontal;
+    }
+    private static class Edge{
+        int p;
+        int q;
+        EdgeType r;
+        public Edge(int p,int q,EdgeType r){
+            this.p=p;
+            this.q=q;
+            this.r=r;
+        }
+    }
+    
+    //Node class
+    private static class Node{
+        String info2;
+        Edge up;
+        Edge left;
+        Edge down;
+        Edge right;
+        int i,j;
+        public Node(String info,int i,int j){
+            this.info2=info;
+            this.i=i;
+            this.j=j;
+        }
+    }
+
+    public static void main(String[] args){
+        Maze maze=new Maze(15, 10);
+        maze.getMaze();
+    }
+}
+
